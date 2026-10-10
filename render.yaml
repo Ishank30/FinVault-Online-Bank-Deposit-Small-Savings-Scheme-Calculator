@@ -26,4 +26,4 @@ services:
         fromService:
           type: web
           name: finvault-backend
-          property: host
+          property: url

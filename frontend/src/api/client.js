@@ -4,9 +4,11 @@
  */
 
 // Read dynamically from Vite environment variables with fallback to local development server
-export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || "http://localhost:8000"
-).replace(/\/+$/, '');
+const rawBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").trim();
+const normalizedUrl = (rawBaseUrl && !rawBaseUrl.startsWith("http://") && !rawBaseUrl.startsWith("https://"))
+  ? `https://${rawBaseUrl}`
+  : rawBaseUrl;
+export const API_BASE_URL = normalizedUrl.replace(/\/+$/, '');
 
 /**
  * Builds an absolute endpoint URL using the configured API_BASE_URL.
@@ -63,7 +65,7 @@ export async function checkBackendHealth(timeoutMs = 60000) {
  * Parses text response first to avoid "Unexpected end of JSON input" on empty bodies or HTML errors.
  */
 export async function calculateInvestmentApi(payload) {
-  const cleanBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  const cleanBaseUrl = API_BASE_URL;
   let res;
 
   try {
