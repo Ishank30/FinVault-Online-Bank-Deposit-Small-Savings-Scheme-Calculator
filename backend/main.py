@@ -82,33 +82,16 @@ app = FastAPI(
 )
 
 # ============================================================================
-# Dynamic Production CORS Configuration
+# CORS Configuration for Deployment
 # ============================================================================
-default_origins = [
-    "http://localhost:5173",
-    "http://127.0.0.1:5173",
-    "http://localhost:3000",
-    "http://127.0.0.1:3000",
-    "http://localhost:4173",
-    "http://127.0.0.1:4173",
-]
-
-env_origins = os.getenv("ALLOWED_ORIGINS", "")
-if env_origins.strip():
-    custom_origins = [orig.strip() for orig in env_origins.split(",") if orig.strip()]
-    allowed_origins = list(dict.fromkeys(default_origins + custom_origins))
-else:
-    allowed_origins = default_origins
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
-    allow_origin_regex=r"^https?://(localhost|127\.0\.0\.1)(:[0-9]+)?$|^https://.*\.vercel\.app$",
+    allow_origins=["*"],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "OPTIONS"],
+    allow_methods=["*"],
     allow_headers=["*"],
-    expose_headers=["*"],
 )
+
 
 
 # ============================================================================
@@ -177,13 +160,13 @@ async def generic_exception_handler(request: Request, exc: Exception):
 @app.get("/health", tags=["System"])
 def health_check() -> Dict[str, str]:
     """Liveness probe for backend container orchestration and monitoring."""
-    return {"status": "healthy", "service": "finvault-backend"}
+    return {"status": "healthy"}
 
 
 @app.get("/api/health", tags=["System"])
 def api_health_check() -> Dict[str, str]:
     """Lightweight API health probe for frontend client warmup and monitoring."""
-    return {"status": "healthy", "service": "finvault-backend"}
+    return {"status": "healthy"}
 
 
 # ============================================================================

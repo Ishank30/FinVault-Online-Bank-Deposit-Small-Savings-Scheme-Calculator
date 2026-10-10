@@ -5,7 +5,7 @@
 
 // Read dynamically from Vite environment variables with fallback to local development server
 export const API_BASE_URL = (
-  import.meta.env.VITE_API_URL || 'http://localhost:8000'
+  import.meta.env.VITE_API_URL || "http://localhost:8000"
 ).replace(/\/+$/, '');
 
 /**
