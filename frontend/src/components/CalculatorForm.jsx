@@ -579,41 +579,8 @@ export default function CalculatorForm({
     };
 
     try {
-      const response = await calculateInvestmentApi(payload);
+      const data = await calculateInvestmentApi(payload);
 
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        let message = 'Validation guardrail failed. Please review your input parameters.';
-        if (errorData.detail) {
-          if (Array.isArray(errorData.detail)) {
-            message = errorData.detail.map(d => {
-              const field = d.loc ? d.loc.filter(x => x !== 'body').join('.') : '';
-              return field ? `${field}: ${d.msg}` : d.msg;
-            }).join('; ');
-          } else {
-            message = errorData.detail;
-          }
-        }
-
-        if (response.status === 422) {
-          const err = new Error(message);
-          err.type = 'VALIDATION_ERROR';
-          err.statusCode = 422;
-          throw err;
-        } else if (response.status >= 500) {
-          const err = new Error(`Server Error (${response.status}): ${message}`);
-          err.type = 'SERVER_ERROR';
-          err.statusCode = response.status;
-          throw err;
-        } else {
-          const err = new Error(`Request failed (${response.status}): ${message}`);
-          err.type = 'HTTP_ERROR';
-          err.statusCode = response.status;
-          throw err;
-        }
-      }
-
-      const data = await response.json();
       setResult(data);
       if (onCalculationResult) {
         onCalculationResult(data, {
@@ -632,17 +599,17 @@ export default function CalculatorForm({
       console.error('Calculation API request failed:', err);
 
       let errorObj;
-      if (err.type === 'VALIDATION_ERROR') {
+      if (err.statusCode === 422 || err.status === 422 || err.type === 'VALIDATION_ERROR') {
         errorObj = {
           title: 'Regulatory / Guardrail Validation Error',
           message: err.message
         };
-      } else if (err.type === 'SERVER_ERROR') {
+      } else if (err.statusCode >= 500 || err.status >= 500 || err.type === 'SERVER_ERROR') {
         errorObj = {
           title: 'Internal Server Error',
           message: err.message
         };
-      } else if (err.name === 'TypeError' || (err.message && err.message.toLowerCase().includes('fetch'))) {
+      } else if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
         errorObj = {
           title: 'Backend Server Unreachable',
           message: 'Cannot reach the FastAPI backend on port 8000. Ensure the server is running with:\npython -m uvicorn backend.main:app --reload --port 8000'

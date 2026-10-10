@@ -519,4 +519,43 @@ def test_goal_planner_endpoint():
     assert data["best_monthly_option"]["required_monthly_rd"] > 0.0
 
 
+def test_optional_fields_and_route_resilience():
+    """
+    Ensure missing optional fields, extra form fields, and both /api/calculate
+    and /calculate routes resolve successfully without HTTP 422 or 404.
+    """
+    minimal_payload = {
+        "amount": 50000.0,
+        "is_senior": True,
+        "extra_unrecognized_key": "should_be_ignored",
+        "another_extra_field": 12345
+    }
 
+    # Test /api/calculate with minimal + extra fields
+    resp1 = client.post("/api/calculate", json=minimal_payload)
+    assert resp1.status_code == 200
+    data1 = resp1.json()
+    assert data1["principal"] == 50000.0
+    assert data1["maturity_amount"] > 50000.0
+    # is_senior was True so age bumped to senior tier
+    assert data1["applicable_interest_rate"] >= 7.0
+
+    # Test route alias /calculate
+    resp2 = client.post("/calculate", json=minimal_payload)
+    assert resp2.status_code == 200
+    data2 = resp2.json()
+    assert data2["maturity_amount"] == data1["maturity_amount"]
+
+
+def test_structured_error_responses_never_empty():
+    """
+    Verify error responses return structured JSON with a 'detail' field
+    and non-empty response body.
+    """
+    # Invalid amount: 0
+    resp = client.post("/api/calculate", json={"amount": 0})
+    assert resp.status_code == 422
+    assert resp.headers["content-type"].startswith("application/json")
+    data = resp.json()
+    assert "detail" in data
+    assert len(data["detail"]) > 0

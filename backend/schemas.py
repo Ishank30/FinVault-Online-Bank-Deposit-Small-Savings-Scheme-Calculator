@@ -5,7 +5,7 @@ DICGC split models, and Break FD vs Overdraft Loan analysis.
 """
 
 from typing import Optional, List, Literal, Dict, Any
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field, model_validator, ConfigDict
 from backend.config_rates import (
     DICGC_LIMIT,
     SAFE_PRINCIPAL_PER_BANK,
@@ -33,20 +33,22 @@ class InvestmentRequest(BaseModel):
     Unified input payload for calculating returns, tax liabilities,
     DICGC insurance guardrails, and laddering schedules.
     """
-    # Mandatory Core Demographics & Investment Principal
+    model_config = ConfigDict(extra="ignore")
+
+    # Demographics & Investment Principal
     age: int = Field(
-        ...,
+        default=30,
         ge=0,
         le=120,
         description="Age of the primary investor (silent sanity check). Determines senior/super senior rate applicability."
     )
     amount: float = Field(
-        ...,
+        default=100000.0,
         gt=0,
         description="Principal deposit amount in INR. For RD, represents monthly recurring installment."
     )
     tenure_years: int = Field(
-        default=0,
+        default=1,
         ge=0,
         le=25,
         description="Investment tenure component in years."
@@ -66,7 +68,7 @@ class InvestmentRequest(BaseModel):
 
     # Product Selectors
     category: CategoryType = Field(
-        ...,
+        default="BANK_FD",
         description="Investment category: Commercial Bank FD, Bank RD, or Govt Small Savings Scheme."
     )
     investment_frequency: Optional[str] = Field(
@@ -105,6 +107,10 @@ class InvestmentRequest(BaseModel):
         default="SINGLE",
         description="Holding mode: SINGLE or JOINT account."
     )
+    is_senior: bool = Field(
+        default=False,
+        description="Senior citizen status flag."
+    )
     tax_slab: float = Field(
         default=0.0,
         ge=0.0,
@@ -125,11 +131,18 @@ class InvestmentRequest(BaseModel):
     # Strict Pydantic Model Validators (Statutory Scheme Rules & Boundaries)
     @model_validator(mode="after")
     def validate_financial_guardrails(self) -> "InvestmentRequest":
+        # Synchronize is_senior with age if appropriate
+        if self.is_senior and self.age < 60:
+            if self.age == 30:  # Default fallback age
+                self.age = 60
+        elif self.age >= 60:
+            self.is_senior = True
+
         total_tenure_days = (self.tenure_years * 365) + (self.tenure_months * 30) + self.tenure_days
 
         if self.category in ("BANK_FD", "BANK_RD"):
             if not self.selected_bank:
-                raise ValueError("A commercial bank ('selected_bank') must be specified for Bank FD or RD.")
+                self.selected_bank = "SBI"
 
             if self.selected_bank not in BANK_FD_SLABS:
                 raise ValueError(f"Invalid bank '{self.selected_bank}'. Must be one of: {list(BANK_FD_SLABS.keys())}.")

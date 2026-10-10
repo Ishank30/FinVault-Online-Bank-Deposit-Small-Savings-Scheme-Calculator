@@ -7,6 +7,7 @@ comprehensive calculation engine, DICGC splitter, and Break FD vs Overdraft Loan
 
 import os
 import sys
+import traceback
 from typing import Dict, Any, List
 from dotenv import load_dotenv
 
@@ -145,6 +146,7 @@ async def generic_exception_handler(request: Request, exc: Exception):
     """
     Catch unhandled errors and return a clean 500 JSON without dropping connections.
     """
+    traceback.print_exc()
     return JSONResponse(
         status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
         content={
@@ -200,6 +202,12 @@ def get_all_rates_catalog() -> Dict[str, Any]:
     tags=["Calculations"],
     summary="Compute term deposit returns, tax liabilities, DICGC split, 5-bank benchmarks, and smart scheme comparisons"
 )
+@app.post(
+    "/calculate",
+    response_model=CalculationResponse,
+    status_code=status.HTTP_200_OK,
+    include_in_schema=False
+)
 def calculate_investment(request: InvestmentRequest) -> CalculationResponse:
     """
     Master Financial Calculation Pipeline:
@@ -216,15 +224,19 @@ def calculate_investment(request: InvestmentRequest) -> CalculationResponse:
     try:
         response = execute_investment_calculation(request)
         return response
+    except HTTPException:
+        raise
     except ValueError as ve:
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail=str(ve)
         )
-    except Exception as exc:
+    except Exception as err:
+        traceback.print_exc()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Financial computation engine error: {str(exc)}"
+            detail=str(err)
         )
 
 

@@ -60,33 +60,27 @@ export async function checkBackendHealth(timeoutMs = 60000) {
 
 /**
  * Dispatches an investment calculation request to FastAPI backend.
- * Handles local fallback if in development mode.
+ * Parses text response first to avoid "Unexpected end of JSON input" on empty bodies or HTML errors.
  */
 export async function calculateInvestmentApi(payload) {
-  const primaryUrl = getApiEndpoint('/api/calculate');
-  let response;
+  const cleanBaseUrl = (import.meta.env.VITE_API_URL || 'http://localhost:8000').replace(/\/+$/, '');
+  let res;
 
   try {
-    response = await fetch(primaryUrl, {
+    res = await fetch(`${cleanBaseUrl}/api/calculate`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
     });
   } catch (fetchErr) {
     // Only attempt local IP fallback in local development mode
-    if (API_BASE_URL.includes('localhost')) {
+    if (cleanBaseUrl.includes('localhost')) {
       const fallbackUrl = 'http://127.0.0.1:8000/api/calculate';
       try {
-        response = await fetch(fallbackUrl, {
+        res = await fetch(fallbackUrl, {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            'Accept': 'application/json'
-          },
-          body: JSON.stringify(payload)
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
         });
       } catch {
         throw fetchErr;
@@ -96,5 +90,28 @@ export async function calculateInvestmentApi(payload) {
     }
   }
 
-  return response;
+  const text = await res.text();
+  let data;
+  try {
+    data = text ? JSON.parse(text) : {};
+  } catch {
+    throw new Error(`Server returned non-JSON response (Status: ${res.status}): ${text || 'Empty response'}`);
+  }
+
+  if (!res.ok) {
+    let errorDetail = data.detail || data.message || `Calculation failed with status ${res.status}`;
+    if (Array.isArray(data.detail)) {
+      errorDetail = data.detail.map(d => {
+        const field = d.loc ? d.loc.filter(x => x !== 'body').join('.') : '';
+        return field ? `${field}: ${d.msg}` : d.msg;
+      }).join('; ');
+    }
+    const err = new Error(typeof errorDetail === 'string' ? errorDetail : JSON.stringify(errorDetail));
+    err.status = res.status;
+    err.statusCode = res.status;
+    err.data = data;
+    throw err;
+  }
+
+  return data;
 }
