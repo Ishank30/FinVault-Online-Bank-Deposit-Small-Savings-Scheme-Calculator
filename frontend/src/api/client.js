@@ -1,14 +1,6 @@
-/**
- * FinVault India - Production Cloud API Client
- * Centralizes base URL configuration, cold-start telemetry, and network dispatch.
- */
+import { API_BASE_URL } from './config';
 
-// Read dynamically from Vite environment variables with fallback to local development server
-const rawBaseUrl = (import.meta.env.VITE_API_URL || "http://localhost:8000").trim();
-const normalizedUrl = (rawBaseUrl && !rawBaseUrl.startsWith("http://") && !rawBaseUrl.startsWith("https://"))
-  ? `https://${rawBaseUrl}`
-  : rawBaseUrl;
-export const API_BASE_URL = normalizedUrl.replace(/\/+$/, '');
+export { API_BASE_URL };
 
 /**
  * Builds an absolute endpoint URL using the configured API_BASE_URL.
@@ -75,9 +67,11 @@ export async function calculateInvestmentApi(payload) {
       body: JSON.stringify(payload),
     });
   } catch (fetchErr) {
+    const isLocal = typeof window !== 'undefined' &&
+      (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     // Only attempt local IP fallback in local development mode
-    if (cleanBaseUrl.includes('localhost')) {
-      const fallbackUrl = 'http://127.0.0.1:8000/api/calculate';
+    if (isLocal && API_BASE_URL.includes('localhost')) {
+      const fallbackUrl = `${API_BASE_URL.replace('localhost', '127.0.0.1')}/api/calculate`;
       try {
         res = await fetch(fallbackUrl, {
           method: 'POST',

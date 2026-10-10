@@ -15,7 +15,7 @@ import {
   Sliders
 } from 'lucide-react';
 import AnimatedNumber from './AnimatedNumber';
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL } from '../api/config';
 
 // Helper function to convert numeric rupee amounts to Indian words
 export function formatIndianCurrencyWords(num) {

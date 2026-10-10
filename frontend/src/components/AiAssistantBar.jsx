@@ -9,7 +9,7 @@ import {
   Lightbulb
 } from 'lucide-react';
 
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL } from '../api/config';
 
 const SAMPLE_PROMPTS = [
   {

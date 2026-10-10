@@ -7,7 +7,7 @@ import {
   Quote
 } from 'lucide-react';
 
-import { API_BASE_URL } from '../api/client';
+import { API_BASE_URL } from '../api/config';
 
 export default function AiExecutiveSummaryCard({ results, result, className = '' }) {
   // Support both 'results' and 'result' prop naming for total caller flexibility

@@ -33,7 +33,8 @@ import { getSchemeRule, formatAmountLimitLabel } from '../utils/schemeRules';
 import { computeBestYieldBank } from '../utils/bankRates';
 import { formatIndianCurrencyWords } from '../utils/currencyUtils';
 
-import { API_BASE_URL, calculateInvestmentApi } from '../api/client';
+import { API_BASE_URL } from '../api/config';
+import { calculateInvestmentApi } from '../api/client';
 
 // Pre-defined static rates & scheme metadata for instant reactive UI preview
 const BANK_OPTIONS = [
@@ -609,10 +610,15 @@ export default function CalculatorForm({
           title: 'Internal Server Error',
           message: err.message
         };
-      } else if (err.name === 'TypeError' && err.message && err.message.toLowerCase().includes('fetch')) {
+      } else if (err.name === 'TypeError' || (err.message && err.message.toLowerCase().includes('fetch'))) {
+        const isLocal = typeof window !== "undefined" && 
+          (window.location.hostname === "localhost" || window.location.hostname === "127.0.0.1");
+        const errorMsg = isLocal
+          ? `Cannot reach local backend on ${API_BASE_URL}. Ensure uvicorn is running.`
+          : `Cannot reach backend service at ${API_BASE_URL}. If waking from idle on free cloud, please wait ~30 seconds and retry.`;
         errorObj = {
           title: 'Backend Server Unreachable',
-          message: 'Cannot reach the FastAPI backend on port 8000. Ensure the server is running with:\npython -m uvicorn backend.main:app --reload --port 8000'
+          message: errorMsg
         };
       } else {
         errorObj = {
